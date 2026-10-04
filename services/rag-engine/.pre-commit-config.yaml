@@ -1,8 +1,13 @@
 # Pre-commit configuration for the rag-engine service.
 #
+# These hooks are a *local* gate, not a CI job: they run on every commit (and push)
+# before code reaches the repository, so formatting and type errors are caught while
+# the change is still in the working tree.
+#
 # The git repository root is the monorepo root, so install this config explicitly:
 #     make -C services/rag-engine pre-commit
-# (equivalent to `pre-commit install -c <this file>`), or run
+# (installs the pre-commit and pre-push hooks pointing at this file), or run it by
+# hand against the whole tree:
 #     pre-commit run -c services/rag-engine/.pre-commit-config.yaml --all-files
 
 # Scoped to this service: the repository root is a monorepo, and hooks that rewrite

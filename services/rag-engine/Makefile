@@ -67,9 +67,11 @@ test-cov: ## Run the unit test suite with a coverage report
 check: lint format-check typecheck test ## Gate used by CI: lint, format, types, tests
 	@echo "make check: OK"
 
-pre-commit: ## Install the pre-commit hooks into the repo's .git/hooks
+pre-commit: ## Install the local commit hooks (lint, format, types) into .git/hooks
 	$(GUARD)
-	$(RUN) pre-commit install --config "$(CURDIR)/.pre-commit-config.yaml"
+	$(RUN) pre-commit install --config "$(CURDIR)/.pre-commit-config.yaml" --hook-type pre-commit
+	$(RUN) pre-commit install --config "$(CURDIR)/.pre-commit-config.yaml" --hook-type pre-push
+	@echo "hooks installed: they now run on every commit and push"
 
 ci: check ## Local dry run of the CI gate
 

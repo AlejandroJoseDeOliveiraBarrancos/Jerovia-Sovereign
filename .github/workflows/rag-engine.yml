@@ -87,25 +87,3 @@ jobs:
           name: rag-engine-coverage
           path: services/rag-engine/coverage.xml
           if-no-files-found: warn
-
-  pre-commit:
-    name: Pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # The mypy hook shells out to `make -C services/rag-engine typecheck`, so this
-      # job needs the same environment the other jobs use.
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --all-extras --frozen
-
-      - name: Run pre-commit
-        uses: pre-commit/action@v3.0.1
-        with:
-          extra_args: --config services/rag-engine/.pre-commit-config.yaml --all-files
