@@ -4,6 +4,10 @@
 #     make -C services/rag-engine pre-commit
 # (equivalent to `pre-commit install -c <this file>`), or run
 #     pre-commit run -c services/rag-engine/.pre-commit-config.yaml --all-files
+
+# Scoped to this service: the repository root is a monorepo, and hooks that rewrite
+# files (end-of-file-fixer, mixed-line-ending) must not touch sibling services.
+files: ^services/rag-engine/
 exclude: '^services/rag-engine/(\.venv|htmlcov|coverage\.xml|\.mypy_cache|\.ruff_cache|\.pytest_cache)/'
 
 default_install_hook_types: [pre-commit, pre-push]

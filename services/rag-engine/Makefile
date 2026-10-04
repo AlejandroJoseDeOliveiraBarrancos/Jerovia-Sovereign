@@ -1,11 +1,14 @@
 # Prefer uv so local runs use the same lockfile as CI; fall back to the venv.
+# Both paths need a trailing space in RUN so `$(RUN) <tool>` expands correctly.
 UV := $(shell command -v uv 2>/dev/null || ([ -x .venv/bin/uv ] && echo .venv/bin/uv))
 ifeq ($(UV),)
 RUN := .venv/bin/
 VENV_STAMP := .venv/.install-stamp
+GUARD := @test -x .venv/bin/python || { printf "No environment found. Run 'make install' first.\n"; exit 1; }
 else
 RUN := $(UV) run
 VENV_STAMP :=
+GUARD :=
 endif
 
 COMPOSE ?= docker compose
@@ -36,29 +39,36 @@ lock: ## Refresh uv.lock from pyproject.toml
 	$(UV) lock
 
 lint: ## Lint with ruff
+	$(GUARD)
 	$(RUN) ruff check src tests
 
 format: ## Format code and sort imports with ruff
+	$(GUARD)
 	$(RUN) ruff format src tests
 	$(RUN) ruff check --fix --select I src tests
 
 format-check: ## Verify formatting without writing
+	$(GUARD)
 	$(RUN) ruff format --check src tests
 	$(RUN) ruff check --select I --diff src tests
 
 typecheck: ## Static type check with mypy (strict)
+	$(GUARD)
 	$(RUN) mypy
 
 test: ## Run the unit test suite
+	$(GUARD)
 	$(RUN) pytest
 
 test-cov: ## Run the unit test suite with a coverage report
-	$(RUN) pytest --cov=rag_engine --cov-report=term-missing --cov-report=xml
+	$(GUARD)
+	$(RUN) pytest --cov --cov-report=term-missing --cov-report=xml
 
 check: lint format-check typecheck test ## Gate used by CI: lint, format, types, tests
 	@echo "make check: OK"
 
 pre-commit: ## Install the pre-commit hooks into the repo's .git/hooks
+	$(GUARD)
 	$(RUN) pre-commit install --config "$(CURDIR)/.pre-commit-config.yaml"
 
 ci: check ## Local dry run of the CI gate
