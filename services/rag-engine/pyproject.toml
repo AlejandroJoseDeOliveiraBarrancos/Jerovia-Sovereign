@@ -1,0 +1,115 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rag-engine"
+dynamic = ["version"]
+description = "Deterministic financial statement RAG and extraction pipeline"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary" }
+dependencies = [
+    "pydantic>=2.11,<3",
+    "pydantic-settings>=2.7,<3",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    # starlette's TestClient now expects the httpx2 package.
+    "httpx2>=2,<3",
+    "mypy>=1.14,<2",
+    "pre-commit>=4.0,<5",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<2",
+    "ruff>=0.9,<1",
+]
+
+[project.scripts]
+rag-engine = "app.main:run"
+
+# ``src`` is a source root, not a package: the hexagon layers are installed as
+# top-level modules (domain, ports, adapters, app, observability, settings).
+[tool.hatch.version]
+path = "src/settings.py"
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "src/domain",
+    "src/ports",
+    "src/adapters",
+    "src/app",
+    "src/observability",
+    "src/settings.py",
+    "src/py.typed",
+]
+sources = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+    "C4",  # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "PTH", # flake8-use-pathlib
+    "RUF", # ruff-specific
+]
+ignore = [
+    "E501", # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["adapters", "app", "domain", "observability", "ports", "settings", "tests"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "tests"]
+mypy_path = "src"
+strict = true
+warn_unreachable = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+no_implicit_reexport = false
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra --strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error",
+    # Third-party deprecation noise we do not control; our own code still fails loudly.
+    "ignore:.*deprecated.*:DeprecationWarning:anyio.*",
+    "ignore:.*deprecated.*:DeprecationWarning:starlette.*",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true

@@ -1,0 +1,90 @@
+# Local stack for rag-engine.
+#
+#   docker compose up -d --wait      start Postgres and the app
+#   docker compose --profile vector up -d --wait   also start Qdrant (see below)
+#
+# One command, no manual steps: the app waits for Postgres to become healthy and
+# refuses to report ready until its component versions are pinned (ADR-001).
+
+name: rag-engine
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RAG_POSTGRES_DB:-rag_engine}
+      POSTGRES_USER: ${RAG_POSTGRES_USER:-rag_engine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_engine_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RAG_POSTGRES_USER:-rag_engine} -d ${RAG_POSTGRES_DB:-rag_engine}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RAG_ENVIRONMENT: ${RAG_ENVIRONMENT:-local}
+      RAG_LOG_LEVEL: ${RAG_LOG_LEVEL:-INFO}
+      RAG_LOG_JSON: ${RAG_LOG_JSON:-true}
+      RAG_POSTGRES_HOST: postgres
+      RAG_POSTGRES_PORT: 5432
+      RAG_POSTGRES_DB: ${RAG_POSTGRES_DB:-rag_engine}
+      RAG_POSTGRES_USER: ${RAG_POSTGRES_USER:-rag_engine}
+      RAG_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_engine_dev_password}
+      RAG_POSTGRES_DSN: >-
+        postgresql://${RAG_POSTGRES_USER:-rag_engine}:${POSTGRES_PASSWORD:-rag_engine_dev_password}@postgres:5432/${RAG_POSTGRES_DB:-rag_engine}
+      # Secrets stay empty locally; export them in .env to call a real provider.
+      RAG_OPENAI_API_KEY: ${RAG_OPENAI_API_KEY:-}
+      RAG_LLM_GATEWAY_API_KEY: ${RAG_LLM_GATEWAY_API_KEY:-}
+      # Vector store slot: E6 picks the provider and flips this value.
+      RAG_VECTOR_STORE_PROVIDER: ${RAG_VECTOR_STORE_PROVIDER:-fake}
+      RAG_QDRANT_URL: http://qdrant:6333
+      # Pinned versions; production refuses to start while any of these is "unpinned".
+      RAG_PARSER_VERSION: ${RAG_PARSER_VERSION:-unpinned}
+      RAG_CHUNKER_VERSION: ${RAG_CHUNKER_VERSION:-v1}
+      RAG_PROMPT_VERSION: ${RAG_PROMPT_VERSION:-v1}
+    ports:
+      - "${RAG_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # Vector store slot for E6. Qdrant is pre-wired (it supports dense + sparse
+  # vectors and fusion in one collection) but it stays behind a compose profile so
+  # it does not start until the E6 spike picks a provider and measurement:
+  #   docker compose --profile vector up -d --wait
+  #   RAG_VECTOR_STORE_PROVIDER=qdrant docker compose --profile vector up -d --wait
+  qdrant:
+    image: qdrant/qdrant:latest
+    profiles: ["vector"]
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  qdrant_data:

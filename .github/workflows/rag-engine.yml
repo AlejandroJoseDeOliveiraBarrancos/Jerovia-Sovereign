@@ -1,0 +1,98 @@
+name: rag-engine
+
+on:
+  push:
+  pull_request:
+    paths:
+      - "services/rag-engine/**"
+      - ".github/workflows/rag-engine.yml"
+
+concurrency:
+  group: rag-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: services/rag-engine
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+  UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/services/rag-engine/.venv
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check src tests
+
+      - name: Ruff format check
+        run: uv run ruff format --check src tests
+
+  typecheck:
+    name: Type check (mypy strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Mypy
+        run: uv run mypy
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Pytest
+        run: uv run pytest --cov=rag_engine --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-engine-coverage
+          path: services/rag-engine/coverage.xml
+          if-no-files-found: warn
+
+  pre-commit:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --config services/rag-engine/.pre-commit-config.yaml --all-files

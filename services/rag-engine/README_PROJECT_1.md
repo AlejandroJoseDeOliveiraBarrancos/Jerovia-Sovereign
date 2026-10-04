@@ -386,6 +386,7 @@ RRF(d) = Σ over each ranked list r of  1 / (k + rank_r(d))      # k ≈ 60 is t
 ```python
 from collections import defaultdict
 
+
 def rrf(ranked_lists: list[list[str]], k: int = 60) -> list[tuple[str, float]]:
     scores = defaultdict(float)
     for ranking in ranked_lists:
@@ -473,30 +474,41 @@ from decimal import Decimal
 from enum import Enum
 from pydantic import BaseModel, field_validator, model_validator
 
+
 class Status(str, Enum):
-    FOUND = "found"; NOT_FOUND = "not_found"; AMBIGUOUS = "ambiguous"
+    FOUND = "found"
+    NOT_FOUND = "not_found"
+    AMBIGUOUS = "ambiguous"
+
 
 class Scale(str, Enum):
-    UNITS = "units"; THOUSANDS = "thousands"; MILLIONS = "millions"; BILLIONS = "billions"
+    UNITS = "units"
+    THOUSANDS = "thousands"
+    MILLIONS = "millions"
+    BILLIONS = "billions"
+
 
 class Evidence(BaseModel):
     page: int
     table_id: str | None = None
-    quote: str                      # verbatim from the source, must contain the printed number
+    quote: str  # verbatim from the source, must contain the printed number
+
 
 class MetricExtraction(BaseModel):
-    metric: str                     # canonical id from your ontology
+    metric: str  # canonical id from your ontology
     status: Status
-    evidence: Evidence | None = None            # emitted BEFORE the value
-    printed_value: str | None = None            # exactly as in the document, e.g. "(1,234.5)"
+    evidence: Evidence | None = None  # emitted BEFORE the value
+    printed_value: str | None = None  # exactly as in the document, e.g. "(1,234.5)"
     scale: Scale | None = None
     currency: str | None = None
-    period_label: str | None = None             # e.g. "Fiscal year ended Sep 28, 2024"
-    reason: str | None = None                   # required when not FOUND
+    period_label: str | None = None  # e.g. "Fiscal year ended Sep 28, 2024"
+    reason: str | None = None  # required when not FOUND
 
     @model_validator(mode="after")
     def found_requires_evidence(self):
-        if self.status == Status.FOUND and not (self.evidence and self.printed_value and self.scale):
+        if self.status == Status.FOUND and not (
+            self.evidence and self.printed_value and self.scale
+        ):
             raise ValueError("FOUND requires evidence, printed_value and scale")
         if self.status != Status.FOUND and not self.reason:
             raise ValueError("Non-FOUND results must explain why")
@@ -1167,4 +1179,3 @@ The parallelism comes from contracts. Once E4-01 (Silver IR), E5-01 (Gold chunk)
 - **Optional tickets:** There are eight of them (E4-08, E4-13, E6-08, E6-17, E8-24, E10-12, E10-13, E12-05), worth about 20 ceiling hours. Skipping them is safe for the KPIs.
 - **Why this is higher than my earlier estimate:** My earlier 134-hour figure was top-down. Writing individual tickets exposed the tests, spikes, calibration and documentation work that top-down estimates tend to hide. Plan with this bottom-up number.
 - **Reserved tickets:** E11-03 to E11-08 are placeholders on purpose. You cannot know your top error classes until the E11-02 histogram exists, so write those six tickets then.
-
